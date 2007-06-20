@@ -135,7 +135,12 @@ module ActsAsUploaded
     
     def delete_uploaded_file
       File.delete(full_path) if file_exists?
-      Dir.rmdir(File.dirname(full_path)) if (Dir.entries(File.dirname(full_path)) - ['.', '..']).empty?
+      dir = File.dirname(full_path)
+      system_files = ['Thumbs.db', '.DS_Store']
+      if (Dir.entries(dir) - ['.', '..'] - system_files).empty?
+        system_files.each { |sys| File.delete("#{dir}/#{sys}") if File.exists?("#{dir}/#{sys}") }
+        Dir.rmdir(dir)
+      end
     end
   end
 
