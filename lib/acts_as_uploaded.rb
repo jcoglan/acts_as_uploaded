@@ -4,7 +4,7 @@ module ActsAsUploaded
     def upload(upload, params = {})
       record = self.new(params)
       file = extract_file_from_array(upload)
-      record.filename = sanitize_filename(file)
+      record.filename = file
       record.validate_uploaded_file(file, false)
       if record.errors.empty?
         record.save_uploaded_file(file)
@@ -17,6 +17,16 @@ module ActsAsUploaded
     def accepts_file_format?(format)
       format = format.content_type if format.respond_to?(:content_type)
       accepted_content.blank? or accepted_content.include?(format.to_s.strip)
+    end
+    
+    def sanitize_filename(filename)
+      filename = filename.original_filename if filename.respond_to?(:original_filename)
+      filename.to_s.gsub(/[\_\:\/]+/, ' ').
+          downcase.
+          gsub(/[^a-z0-9.\s-]/i, '').
+          strip.
+          gsub(/\s+/, '_').
+          gsub(/^_+$/, '')
     end
     
   private
@@ -45,16 +55,6 @@ module ActsAsUploaded
       end
       return nil
     end
-    
-    def sanitize_filename(filename)
-      filename = filename.original_filename if filename.respond_to?(:original_filename)
-      filename.to_s.gsub(/[\_\:\/]+/, ' ').
-          downcase.
-          gsub(/[^a-z0-9.\s-]/i, '').
-          strip.
-          gsub(/\s+/, '_').
-          gsub(/^_+$/, '')
-    end
   end
   
   module InstanceMethods
@@ -72,14 +72,6 @@ module ActsAsUploaded
     
     def file_exists?
       File.exists?(full_path)
-    end
-    
-    def filename
-      read_attribute(self.class.filename_method)
-    end
-    
-    def filename=(name)
-      write_attribute(self.class.filename_method, name)
     end
     
     def filesize
@@ -114,7 +106,7 @@ module ActsAsUploaded
   private
     
     def validate_file_does_not_exist
-      errors.add_to_base("The file '#{filename}' already exists") if file_exists?
+      errors.add(self.class.filename_method, "'#{filename}' already exists") if file_exists?
     end
     
     def validate_filesize(filesize)
@@ -145,6 +137,10 @@ module ActsAsUploaded
     def rename_uploaded_file
       saved_record = self.class.find(id)
       if saved_record.file_exists? and full_path != saved_record.full_path
+        if file_exists?
+          errors.add(self.class.filename_method, "is already taken by another file")
+          return false
+        end
         ensure_directory_exists
         File.rename(saved_record.full_path, full_path)
         saved_record.remove_empty_directory
@@ -154,6 +150,13 @@ module ActsAsUploaded
     def delete_uploaded_file
       File.delete(full_path) if file_exists?
       remove_empty_directory
+    end
+    
+    def write_attribute_with_filename_sanitizing(attr_name, value)
+      if attr_name.to_s == self.class.filename_method.to_s
+        value = self.class.sanitize_filename(value)
+        write_attribute_without_filename_sanitizing(attr_name, value)
+      end
     end
   end
 
