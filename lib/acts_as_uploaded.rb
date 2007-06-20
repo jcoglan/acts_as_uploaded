@@ -16,7 +16,7 @@ module ActsAsUploaded
     
     def accepts_file_format?(format)
       format = format.content_type if format.respond_to?(:content_type)
-      accepted_content.blank? or accepted_content.include?(format.to_s.strip)
+      upload_options[:accepted_content].blank? or upload_options[:accepted_content].include?(format.to_s.strip)
     end
     
     def sanitize_filename(filename)
@@ -32,20 +32,15 @@ module ActsAsUploaded
   private
     
     def set_default_upload_settings(options = {})
+      class_inheritable_accessor(:upload_options)
       defaults = {
         :accepted_content     => [],
         :valid_filesize       => {:minimum => 0, :maximum => 4.megabytes},
         :directory_method     => nil,
-        :filename_method      => :filename
+        :filename_method      => :filename,
+        :upload_directory     => 'uploads/' + self.to_s.tableize
       }
-      required = %w(upload_directory)
-      (defaults.keys.collect(&:to_s) + required).each do |method_name|
-        cattr_accessor method_name
-        if defaults.keys.collect(&:to_s).include?(method_name)
-          send("#{method_name}=", defaults[method_name.intern]) if send(method_name).nil?
-        end
-      end
-      options.each { |key, value| send("#{key.to_s}=", value) }
+      self.upload_options = defaults.update(options)
     end
     
     def extract_file_from_array(array)
@@ -60,10 +55,10 @@ module ActsAsUploaded
   
   module InstanceMethods
     def full_path
-      self.class.upload_directory.gsub(/\/$/, '').
-          gsub(Regexp.new("^(#{RAILS_ROOT}/?)?"), RAILS_ROOT + '/') +
-          instance_directory.gsub(/^\/?(.+?)\/?$/, '/\1') +
-          '/' + filename
+      path = self.class.upload_options[:upload_directory].
+          gsub(Regexp.new("^(#{RAILS_ROOT})?/?"), RAILS_ROOT + '/') + '/' +
+          instance_directory + '/' + filename
+      path.gsub(/\/+/, '/')
     end
     
     def public_path
@@ -107,12 +102,12 @@ module ActsAsUploaded
   private
     
     def validate_file_does_not_exist
-      errors.add(self.class.filename_method, "'#{filename}' already exists") if file_exists?
+      errors.add(self.class.upload_options[:filename_method], "'#{filename}' already exists") if file_exists?
     end
     
     def validate_filesize(filesize)
-      errors.add_to_base("Uploaded file was too small") if filesize < self.class.valid_filesize[:minimum]
-      errors.add_to_base("Uploaded file was too large") if filesize > self.class.valid_filesize[:maximum]
+      errors.add_to_base("Uploaded file was too small") if filesize < self.class.upload_options[:valid_filesize][:minimum]
+      errors.add_to_base("Uploaded file was too large") if filesize > self.class.upload_options[:valid_filesize][:maximum]
     end
     
     def validate_content_type(content_type)
@@ -120,7 +115,7 @@ module ActsAsUploaded
     end
     
     def instance_directory
-      (dir = self.class.directory_method).nil? ? '' : send(dir).to_s
+      (dir = self.class.upload_options[:directory_method]).nil? ? '' : send(dir).to_s
     end
     
     def ensure_directory_exists
@@ -139,7 +134,7 @@ module ActsAsUploaded
       saved_record = self.class.find(id)
       if saved_record.file_exists? and full_path != saved_record.full_path
         if file_exists?
-          errors.add(self.class.filename_method, "is already taken by another file")
+          errors.add(self.class.upload_options[:filename_method], "is already taken by another file")
           return false
         end
         ensure_directory_exists
@@ -154,7 +149,7 @@ module ActsAsUploaded
     end
     
     def write_attribute_with_filename_sanitizing(attr_name, value)
-      if attr_name.to_s == self.class.filename_method.to_s
+      if attr_name.to_s == self.class.upload_options[:filename_method].to_s
         value = self.class.sanitize_filename(value)
         write_attribute_without_filename_sanitizing(attr_name, value)
       end
