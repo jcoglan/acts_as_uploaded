@@ -5,7 +5,7 @@ module ActsAsUploaded
       record = self.new(params)
       file = extract_file_from_array(upload)
       record.filename = sanitize_filename(file)
-      record.validate_uploaded_file(file)
+      record.validate_uploaded_file(file, false)
       if record.errors.empty?
         record.save_uploaded_file(file)
         result = record.save
@@ -104,16 +104,21 @@ module ActsAsUploaded
       file_exists? ? File.size(full_path) : nil
     end
     
-    def validate_uploaded_file(file)
+    def validate_uploaded_file(file, overwrite = false)
       valid?
       if file.nil?
         errors.add_to_base('No file was uploaded') and return
       end
+      validate_file_does_not_exist unless overwrite
       validate_filesize(file.size)
       validate_content_type(file.content_type)
     end
     
   private
+    
+    def validate_file_does_not_exist
+      errors.add_to_base("The file '#{filename}' already exists") if file_exists?
+    end
     
     def validate_filesize(filesize)
       errors.add_to_base("Uploaded file was too small") if filesize < self.class.valid_filesize[:minimum]
@@ -130,6 +135,7 @@ module ActsAsUploaded
     
     def delete_uploaded_file
       File.delete(full_path) if file_exists?
+      Dir.rmdir(File.dirname(full_path)) if (Dir.entries(File.dirname(full_path)) - ['.', '..']).empty?
     end
   end
 
