@@ -58,24 +58,6 @@ module ActsAsUploaded
   end
   
   module InstanceMethods
-    def ensure_directory_exists
-      upload_directory = File.dirname(full_path)
-      leading_slash = (upload_directory =~ /^\//) ? '/' : ''
-      directories = upload_directory.split(/\/+/).delete_if(&:blank?)
-      directories.each_with_index do |dir, i|
-        unless ['.', '..'].include?(dir)
-          make_dir = leading_slash + directories[0..i].join('/')
-          Dir.mkdir(make_dir) unless File.exists?(make_dir)
-        end
-      end
-    end
-    
-    def save_uploaded_file(data)
-      ensure_directory_exists
-      data = data.read if data.respond_to?(:read)
-      File.open(full_path, 'wb') { |f| f.write(data) }
-    end
-    
     def full_path
       self.class.upload_directory.gsub(/\/$/, '').
           gsub(Regexp.new("^(#{RAILS_ROOT}/?)?"), RAILS_ROOT + '/') +
@@ -114,6 +96,21 @@ module ActsAsUploaded
       validate_content_type(file.content_type)
     end
     
+    def save_uploaded_file(data)
+      ensure_directory_exists
+      data = data.read if data.respond_to?(:read)
+      File.open(full_path, 'wb') { |f| f.write(data) }
+    end
+    
+    def remove_empty_directory
+      dir = File.dirname(full_path)
+      system_files = ['Thumbs.db', '.DS_Store']
+      if (Dir.entries(dir) - ['.', '..'] - system_files).empty?
+        system_files.each { |sys| File.delete("#{dir}/#{sys}") if File.exists?("#{dir}/#{sys}") }
+        Dir.rmdir(dir)
+      end
+    end
+    
   private
     
     def validate_file_does_not_exist
@@ -133,14 +130,30 @@ module ActsAsUploaded
       (dir = self.class.directory_method).nil? ? '' : send(dir).to_s
     end
     
+    def ensure_directory_exists
+      upload_directory = File.dirname(full_path)
+      leading_slash = (upload_directory =~ /^\//) ? '/' : ''
+      directories = upload_directory.split(/\/+/).delete_if(&:blank?)
+      directories.each_with_index do |dir, i|
+        unless ['.', '..'].include?(dir)
+          make_dir = leading_slash + directories[0..i].join('/')
+          Dir.mkdir(make_dir) unless File.exists?(make_dir)
+        end
+      end
+    end
+    
+    def rename_uploaded_file
+      saved_record = self.class.find(id)
+      if saved_record.file_exists? and full_path != saved_record.full_path
+        ensure_directory_exists
+        File.rename(saved_record.full_path, full_path)
+        saved_record.remove_empty_directory
+      end
+    end
+    
     def delete_uploaded_file
       File.delete(full_path) if file_exists?
-      dir = File.dirname(full_path)
-      system_files = ['Thumbs.db', '.DS_Store']
-      if (Dir.entries(dir) - ['.', '..'] - system_files).empty?
-        system_files.each { |sys| File.delete("#{dir}/#{sys}") if File.exists?("#{dir}/#{sys}") }
-        Dir.rmdir(dir)
-      end
+      remove_empty_directory
     end
   end
 
