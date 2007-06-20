@@ -7,8 +7,8 @@ module ActsAsUploaded
       record.filename = sanitize_filename(file)
       record.validate_uploaded_file(file)
       if record.errors.empty?
-        result = record.save
         record.save_uploaded_file(file)
+        result = record.save
         return [result, record]
       end
       [false, record]
@@ -21,7 +21,7 @@ module ActsAsUploaded
     
   private
     
-    def set_default_upload_settings
+    def set_default_upload_settings(options = {})
       defaults = {
         :accepted_content     => [],
         :valid_filesize       => {:minimum => 0, :maximum => 4.megabytes},
@@ -34,6 +34,7 @@ module ActsAsUploaded
           send("#{method_name}=", defaults[method_name.intern]) if send(method_name).nil?
         end
       end
+      options.each { |key, value| send("#{key.to_s}=", value) }
     end
     
     def extract_file_from_array(array)
