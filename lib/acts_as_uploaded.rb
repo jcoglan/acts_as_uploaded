@@ -38,7 +38,8 @@ module ActsAsUploaded
         :directory_method     => nil,
         :filename_method      => :filename
       }
-      (defaults.keys.collect(&:to_s) + %w(upload_directory)).each do |method_name|
+      required = %w(upload_directory)
+      (defaults.keys.collect(&:to_s) + required).each do |method_name|
         cattr_accessor method_name
         if defaults.keys.collect(&:to_s).include?(method_name)
           send("#{method_name}=", defaults[method_name.intern]) if send(method_name).nil?
