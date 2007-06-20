@@ -29,6 +29,15 @@ module ActsAsUploaded
           gsub(/^_+$/, '')
     end
     
+    def extract_file_from_array(array)
+      return array unless array.is_a?(Array)
+      array.each do |element|
+        return extract_file_from_array(element) if element.is_a?(Array)
+        return element if [StringIO, Tempfile, File].include?(element.class)
+      end
+      return nil
+    end
+    
   private
     
     def set_default_upload_settings(options = {})
@@ -41,15 +50,6 @@ module ActsAsUploaded
         :upload_directory     => 'uploads/' + self.to_s.tableize
       }
       self.upload_options = defaults.update(options)
-    end
-    
-    def extract_file_from_array(array)
-      return array if [StringIO, Tempfile, File].include?(array.class)
-      array.each do |element|
-        return extract_file_from_array(element) if element.is_a?(Array)
-        return element if [StringIO, Tempfile, File].include?(element.class)
-      end
-      return nil
     end
   end
   
@@ -76,6 +76,7 @@ module ActsAsUploaded
     
     def validate_uploaded_file(file, overwrite = false)
       valid?
+      file = self.class.extract_file_from_array(file)
       if file.nil?
         errors.add_to_base('No file was uploaded') and return
       end
@@ -86,6 +87,7 @@ module ActsAsUploaded
     
     def save_uploaded_file(data)
       ensure_directory_exists
+      data = self.class.extract_file_from_array(data)
       data = data.read if data.respond_to?(:read)
       File.open(full_path, 'wb') { |f| f.write(data) }
       callback(:after_save_uploaded_file)
