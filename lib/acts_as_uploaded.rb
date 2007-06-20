@@ -88,6 +88,7 @@ module ActsAsUploaded
       ensure_directory_exists
       data = data.read if data.respond_to?(:read)
       File.open(full_path, 'wb') { |f| f.write(data) }
+      callback(:after_save_uploaded_file)
     end
     
     def remove_empty_directory
@@ -151,9 +152,11 @@ module ActsAsUploaded
     def write_attribute_with_filename_sanitizing(attr_name, value)
       if attr_name.to_s == self.class.upload_options[:filename_method].to_s
         value = self.class.sanitize_filename(value)
-        write_attribute_without_filename_sanitizing(attr_name, value)
       end
+      write_attribute_without_filename_sanitizing(attr_name, value)
     end
+    
+    def after_save_uploaded_file; end
   end
 
 end
