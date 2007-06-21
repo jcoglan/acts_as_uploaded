@@ -68,8 +68,8 @@ module ActsAsUploaded
       full_path =~ public_regexp ? full_path.gsub(public_regexp, '') : nil
     end
     
-    def file_exists?
-      File.exists?(full_path)
+    def file_exists?(path = nil)
+      File.file?(path || full_path)
     end
     
     def filesize
@@ -96,7 +96,7 @@ module ActsAsUploaded
     end
     
     def remove_empty_directory(dir = nil)
-      dir ||= File.dirname(full_path)
+      dir = File.dirname(dir || full_path)
       dir.gsub!(/(\/+\.\.?\/*)*$/, '')
       system_files = ['Thumbs.db', '.DS_Store']
       if File.exists?(dir) and (Dir.entries(dir) - ['.', '..'] - system_files).empty?
@@ -131,15 +131,14 @@ module ActsAsUploaded
     end
     
     def rename_uploaded_file
-      saved_record = self.class.find(id)
-      if saved_record.file_exists? and full_path != saved_record.full_path
+      if @saved_full_path and file_exists?(@saved_full_path) and full_path != @saved_full_path
         if file_exists?
           errors.add(self.class.upload_options[:filename_method], "is already taken by another file")
           return false
         end
         ensure_directory_exists
-        File.rename(saved_record.full_path, full_path)
-        saved_record.remove_empty_directory
+        File.rename(@saved_full_path, full_path)
+        remove_empty_directory(@saved_full_path)
       end
     end
     
@@ -149,6 +148,7 @@ module ActsAsUploaded
     end
     
     def write_attribute_with_filename_sanitizing(attr_name, value)
+      @saved_full_path ||= full_path if file_exists?
       if attr_name.to_s == self.class.upload_options[:filename_method].to_s
         value = self.class.sanitize_filename(value)
       end
