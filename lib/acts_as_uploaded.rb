@@ -15,11 +15,13 @@ module ActsAsUploaded
     end
     
     def accepts_file_format?(format)
+      format = extract_file_from_array(format)
       format = format.content_type if format.respond_to?(:content_type)
       upload_options[:accepted_content].blank? or upload_options[:accepted_content].include?(format.to_s.strip)
     end
     
     def sanitize_filename(filename)
+      filename = extract_file_from_array(filename)
       filename = filename.original_filename if filename.respond_to?(:original_filename)
       filename.to_s.gsub(/[\_\:\/]+/, ' ').
           downcase.
@@ -93,12 +95,14 @@ module ActsAsUploaded
       callback(:after_save_uploaded_file)
     end
     
-    def remove_empty_directory
-      dir = File.dirname(full_path)
+    def remove_empty_directory(dir = nil)
+      dir ||= File.dirname(full_path)
+      dir.gsub!(/(\/+\.\.?\/*)*$/, '')
       system_files = ['Thumbs.db', '.DS_Store']
-      if (Dir.entries(dir) - ['.', '..'] - system_files).empty?
+      if File.exists?(dir) and (Dir.entries(dir) - ['.', '..'] - system_files).empty?
         system_files.each { |sys| File.delete("#{dir}/#{sys}") if File.exists?("#{dir}/#{sys}") }
         Dir.rmdir(dir)
+        remove_empty_directory(dir.gsub(/\/+[^\/]*\/*$/, ''))
       end
     end
     
@@ -122,15 +126,8 @@ module ActsAsUploaded
     end
     
     def ensure_directory_exists
-      upload_directory = File.dirname(full_path)
-      leading_slash = (upload_directory =~ /^\//) ? '/' : ''
-      directories = upload_directory.split(/\/+/).delete_if(&:blank?)
-      directories.each_with_index do |dir, i|
-        unless ['.', '..'].include?(dir)
-          make_dir = leading_slash + directories[0..i].join('/')
-          Dir.mkdir(make_dir) unless File.exists?(make_dir)
-        end
-      end
+      dir = File.dirname(full_path)
+      FileUtils.mkdir_p(dir) unless File.exists?(dir)
     end
     
     def rename_uploaded_file
