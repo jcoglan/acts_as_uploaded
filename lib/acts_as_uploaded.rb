@@ -148,7 +148,7 @@ module ActsAsUploaded
     end
     
     def write_attribute_with_filename_sanitizing(attr_name, value)
-      @saved_full_path ||= full_path if file_exists?
+      @saved_full_path = full_path if file_exists?
       if attr_name.to_s == self.class.upload_options[:filename_method].to_s
         value = self.class.sanitize_filename(value)
       end
