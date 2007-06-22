@@ -39,7 +39,8 @@ module ActsAsUploaded
     end
     
     def instance_directory
-      (dir = self.class.upload_options[:subdirectory]).nil? ? '' : send(dir).to_s
+      dir = self.class.upload_options[:subdirectory]
+      dir.nil? ? '' : send(dir).to_s.gsub(/[^a-z0-9_\/\\-]/i, '')
     end
     
     def rename_uploaded_file
