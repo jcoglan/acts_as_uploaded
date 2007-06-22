@@ -42,7 +42,9 @@ module ActsAsUploaded
         :valid_filesize       => {:minimum => 0, :maximum => 4.megabytes},
         :directory            => 'uploads/' + self.to_s.tableize,
         :subdirectory         => nil,
-        :filename             => :filename
+        :filename             => :filename,
+        :content_type         => nil,
+        :filesize             => nil
       }
       self.upload_options = defaults.update(options)
     end
@@ -62,6 +64,8 @@ module ActsAsUploaded
     def populate_attributes_from_uploaded_file
       return if @uploaded_file.nil?
       send("#{self.class.upload_options[:filename]}=", @uploaded_file.original_filename)
+      send("#{self.class.upload_options[:content_type]}=", @uploaded_file.content_type.strip) unless self.class.upload_options[:content_type].nil?
+      send("#{self.class.upload_options[:filesize]}=", @uploaded_file.size) unless self.class.upload_options[:filesize].nil?
     end
     
     def write_attribute_with_filename_sanitizing(attr_name, value)
