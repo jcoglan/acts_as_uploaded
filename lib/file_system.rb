@@ -24,9 +24,15 @@ module ActsAsUploaded
       delete_uploaded_file if file_exists? and remove_existing_file
       ensure_directory_exists
       File.open(full_path_from_current_attributes, 'wb') { |f| f.write(@uploaded_file.read) }
+      chmod
       @saved_full_path = full_path_from_current_attributes
       callback(:after_save_uploaded_file)
       return true
+    end
+    
+    def chmod(permissions = nil)
+      permissions ||= self.class.upload_options[:chmod]
+      File.chmod(permissions, full_path) if file_exists?
     end
     
   private

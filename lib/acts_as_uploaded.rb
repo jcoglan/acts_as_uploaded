@@ -42,6 +42,7 @@ module ActsAsUploaded
         :valid_filesize       => {:minimum => 0, :maximum => 4.megabytes},
         :directory            => 'uploads/' + self.to_s.tableize,
         :subdirectory         => nil,
+        :chmod                => 0644,
         :filename             => :filename,
         :content_type         => nil,
         :filesize             => nil
