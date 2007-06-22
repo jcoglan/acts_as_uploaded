@@ -10,7 +10,7 @@ module ActsAsUploaded
     def accepts_file_format?(format)
       format = extract_file_from_array(format)
       format = format.content_type if format.respond_to?(:content_type)
-      upload_options[:accepted_content].blank? or upload_options[:accepted_content].include?(format.to_s.strip)
+      upload_options[:accepted_content].blank? or upload_options[:accepted_content].to_a.include?(format.to_s.strip)
     end
     
     def sanitize_filename(filename)
