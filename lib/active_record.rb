@@ -4,6 +4,8 @@ module ActiveRecord
     def self.acts_as_uploaded(options = {})
       extend ActsAsUploaded::ClassMethods
       include ActsAsUploaded::InstanceMethods
+      include ActsAsUploaded::FileSystem
+      include ActsAsUploaded::Validation
       
       set_default_upload_settings(options)
       
