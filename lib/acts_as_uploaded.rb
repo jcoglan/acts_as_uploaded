@@ -16,8 +16,8 @@ module ActsAsUploaded
     def sanitize_filename(filename)
       filename = extract_file_from_array(filename)
       filename = filename.original_filename if filename.respond_to?(:original_filename)
-      filename.to_s.gsub(/[\_\:\/]+/, ' ').
-          downcase.
+      filename.to_s.downcase.
+          gsub(/[\_\:\/]+/, ' ').
           gsub(/[^a-z0-9.\s-]/i, '').
           strip.
           gsub(/\s+/, '_').
