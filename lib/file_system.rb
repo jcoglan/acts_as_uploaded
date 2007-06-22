@@ -32,20 +32,20 @@ module ActsAsUploaded
   private
     
     def full_path_from_current_attributes
-      path = self.class.upload_options[:upload_directory].
+      path = self.class.upload_options[:directory].
           gsub(Regexp.new("^(#{RAILS_ROOT})?/?"), RAILS_ROOT + '/') + '/' +
-          instance_directory + '/' + send(self.class.upload_options[:filename_method])
+          instance_directory + '/' + send(self.class.upload_options[:filename])
       path.gsub(/\/+/, '/')
     end
     
     def instance_directory
-      (dir = self.class.upload_options[:directory_method]).nil? ? '' : send(dir).to_s
+      (dir = self.class.upload_options[:subdirectory]).nil? ? '' : send(dir).to_s
     end
     
     def rename_uploaded_file
       if file_exists? and full_path != full_path_from_current_attributes
         if File.file?(full_path_from_current_attributes)
-          errors.add(self.class.upload_options[:filename_method], "is already taken by another file")
+          errors.add(self.class.upload_options[:filename], "is already taken by another file")
           return false
         end
         ensure_directory_exists
@@ -69,10 +69,10 @@ module ActsAsUploaded
     end
     
     def remove_empty_directory(path = nil)
-      dir = File.dirname(path || full_path)
+      dir = path || File.dirname(full_path)
       dir.gsub!(/(\/+\.\.?\/*)*$/, '')
-      system_files = ['Thumbs.db', '.DS_Store']
-      if File.directory?(dir) and (Dir.entries(dir) - ['.', '..'] - system_files).empty?
+      system_files = %w(Thumbs.db .DS_Store)
+      if File.directory?(dir) and !File.symlink?(dir) and (Dir.entries(dir) - %w(. ..) - system_files).empty?
         system_files.each { |sys| File.delete("#{dir}/#{sys}") if File.exists?("#{dir}/#{sys}") }
         Dir.rmdir(dir)
         remove_empty_directory(dir.gsub(/\/+[^\/]*\/*$/, ''))

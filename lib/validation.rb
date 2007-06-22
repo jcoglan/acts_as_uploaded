@@ -14,7 +14,7 @@ module ActsAsUploaded
     end
     
     def validate_file_does_not_exist
-      errors.add(self.class.upload_options[:filename_method], "'#{filename}' already exists") if file_exists?
+      errors.add(self.class.upload_options[:filename], "'#{filename}' already exists") if file_exists?
     end
     
     def validate_filesize
