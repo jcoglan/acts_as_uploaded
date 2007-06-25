@@ -1,6 +1,6 @@
-module ActsAsUploaded
+module ActsAsUploaded #:nodoc:
 
-  module ClassMethods
+  module ClassMethods #:nodoc:
   private
     def set_default_upload_settings(options = {})
       class_inheritable_accessor(:upload_options)
@@ -18,9 +18,15 @@ module ActsAsUploaded
     end
   end
   
-  module InstanceMethods
+  module InstanceMethods #:nodoc:
   
+    # Returns the +uploaded_file+ object from the record if it exists. This property only exists during a
+    # file upload process - it will not return the file saved on the file system. You should use <tt>File.open</tt>
+    # with the record's +full_path+ for operations on the saved file.
     def uploaded_file;          @uploaded_file; end
+    
+    # Attribute writer for the +uploaded_file+ property. Allows file uploads to be scripted just like any
+    # other record attribute. Use <tt>update_attribute :uploaded_file => file</tt> to overwrite saved files.
     def uploaded_file=(file);   write_attribute(:uploaded_file, file); end
     
   private

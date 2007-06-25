@@ -1,5 +1,5 @@
-module ActsAsUploaded
-  module Validation
+module ActsAsUploaded #:nodoc:
+  module Validation #:nodoc:
   
     def validate_with_upload_validation
       validate_without_upload_validation
