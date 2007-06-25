@@ -1,37 +1,7 @@
 module ActsAsUploaded
 
   module ClassMethods
-    def accepts_file_format?(format)
-      format = extract_file_from_array(format)
-      format = format.content_type if format.respond_to?(:content_type)
-      upload_options[:accepted_content].blank? or upload_options[:accepted_content].to_a.include?(format.to_s.strip)
-    end
-    
-    def sanitize_filename(filename)
-      filename = extract_file_from_array(filename)
-      filename = filename.original_filename if filename.respond_to?(:original_filename)
-      filename.to_s.
-          gsub(/[\_\:\/]+/, ' ').
-          gsub(/[^a-z0-9.\s-]/i, '').
-          strip.
-          gsub(/\s+/, '_').
-          gsub(/^_+$/, '')
-    end
-    
-    def extract_file_from_array(array)
-      return array unless array.is_a?(Array)
-      array.each do |element|
-        if element.is_a?(Array)
-          result = extract_file_from_array(element)
-          return result unless result.nil?
-        end
-        return element if [StringIO, Tempfile, File].include?(element.class)
-      end
-      return nil
-    end
-    
   private
-    
     def set_default_upload_settings(options = {})
       class_inheritable_accessor(:upload_options)
       defaults = {
@@ -55,6 +25,29 @@ module ActsAsUploaded
     
   private
     
+    def extract_file_from_array(array)
+      return array unless array.is_a?(Array)
+      array.each do |element|
+        if element.is_a?(Array)
+          result = extract_file_from_array(element)
+          return result unless result.nil?
+        end
+        return element if [StringIO, Tempfile, File].include?(element.class)
+      end
+      return nil
+    end
+    
+    def sanitize_filename(filename)
+      filename = extract_file_from_array(filename)
+      filename = filename.original_filename if filename.respond_to?(:original_filename)
+      filename.to_s.
+          gsub(/[\_\:\/]+/, ' ').
+          gsub(/[^a-z0-9.\s-]/i, '').
+          strip.
+          gsub(/\s+/, '_').
+          gsub(/^_+$/, '')
+    end
+    
     def populate_attributes_from_uploaded_file
       return if @uploaded_file.nil?
       send("#{self.class.upload_options[:filename]}=", @uploaded_file.original_filename)
@@ -64,12 +57,12 @@ module ActsAsUploaded
     
     def write_attribute_with_filename_sanitizing(attr_name, value)
       if attr_name.to_s == "uploaded_file"
-        @uploaded_file = self.class.extract_file_from_array(value)
+        @uploaded_file = extract_file_from_array(value)
         populate_attributes_from_uploaded_file
       else
         @saved_full_path = full_path if file_exists?
         if attr_name.to_s == self.class.upload_options[:filename].to_s
-          value = self.class.sanitize_filename(value)
+          value = sanitize_filename(value)
         end
         write_attribute_without_filename_sanitizing(attr_name, value)
       end

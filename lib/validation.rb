@@ -35,7 +35,13 @@ module ActsAsUploaded
     def validate_content_type
       return if @uploaded_file.nil?
       errors.add_to_base("Content type '#{@uploaded_file.content_type.strip}' is not valid") unless
-          self.class.accepts_file_format?(@uploaded_file.content_type)
+          accepts_file_format?(@uploaded_file.content_type)
+    end
+    
+    def accepts_file_format?(format)
+      format = extract_file_from_array(format)
+      format = format.content_type if format.respond_to?(:content_type)
+      upload_options[:accepted_content].blank? or upload_options[:accepted_content].to_a.include?(format.to_s.strip)
     end
   
   end
