@@ -1,12 +1,6 @@
 module ActsAsUploaded
 
   module ClassMethods
-    def upload(uploaded_file, params = {})
-      record = self.new(params)
-      result = record.upload(uploaded_file)
-      [result, record]
-    end
-    
     def accepts_file_format?(format)
       format = extract_file_from_array(format)
       format = format.content_type if format.respond_to?(:content_type)
@@ -16,7 +10,7 @@ module ActsAsUploaded
     def sanitize_filename(filename)
       filename = extract_file_from_array(filename)
       filename = filename.original_filename if filename.respond_to?(:original_filename)
-      filename.to_s.downcase.
+      filename.to_s.
           gsub(/[\_\:\/]+/, ' ').
           gsub(/[^a-z0-9.\s-]/i, '').
           strip.
@@ -27,7 +21,10 @@ module ActsAsUploaded
     def extract_file_from_array(array)
       return array unless array.is_a?(Array)
       array.each do |element|
-        return extract_file_from_array(element) if element.is_a?(Array)
+        if element.is_a?(Array)
+          result = extract_file_from_array(element)
+          return result unless result.nil?
+        end
         return element if [StringIO, Tempfile, File].include?(element.class)
       end
       return nil
@@ -52,13 +49,9 @@ module ActsAsUploaded
   end
   
   module InstanceMethods
-    def upload(uploaded_file, overwrite = false)
-      @uploaded_file = self.class.extract_file_from_array(uploaded_file)
-      populate_attributes_from_uploaded_file
-      validate_uploaded_file(overwrite)
-      return save_uploaded_file if errors.empty?
-      return false
-    end
+  
+    def uploaded_file;          @uploaded_file; end
+    def uploaded_file=(file);   write_attribute(:uploaded_file, file); end
     
   private
     
@@ -70,11 +63,16 @@ module ActsAsUploaded
     end
     
     def write_attribute_with_filename_sanitizing(attr_name, value)
-      @saved_full_path ||= full_path if file_exists?
-      if attr_name.to_s == self.class.upload_options[:filename].to_s
-        value = self.class.sanitize_filename(value)
+      if attr_name.to_s == "uploaded_file"
+        @uploaded_file = self.class.extract_file_from_array(value)
+        populate_attributes_from_uploaded_file
+      else
+        @saved_full_path = full_path if file_exists?
+        if attr_name.to_s == self.class.upload_options[:filename].to_s
+          value = self.class.sanitize_filename(value)
+        end
+        write_attribute_without_filename_sanitizing(attr_name, value)
       end
-      write_attribute_without_filename_sanitizing(attr_name, value)
     end
     
     def after_save_uploaded_file; end

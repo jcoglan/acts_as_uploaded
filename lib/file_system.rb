@@ -18,18 +18,6 @@ module ActsAsUploaded
       file_exists? ? File.size(full_path) : nil
     end
     
-    def save_uploaded_file(remove_existing_file = false)
-      return false if @uploaded_file.nil?
-      return false unless save
-      delete_uploaded_file if file_exists? and remove_existing_file
-      ensure_directory_exists
-      File.open(full_path_from_current_attributes, 'wb') { |f| f.write(@uploaded_file.read) }
-      chmod
-      @saved_full_path = full_path_from_current_attributes
-      callback(:after_save_uploaded_file)
-      return true
-    end
-    
     def chmod(permissions = nil)
       permissions ||= self.class.upload_options[:chmod]
       File.chmod(permissions, full_path) if file_exists?
@@ -49,12 +37,19 @@ module ActsAsUploaded
       dir.nil? ? '' : send(dir).to_s.gsub(/[^a-z0-9_\/\\-]/i, '')
     end
     
+    def save_uploaded_file
+      return if @uploaded_file.nil?
+      ensure_directory_exists
+      File.open(full_path_from_current_attributes, 'wb') { |f| f.write(@uploaded_file.read) }
+      chmod
+      @saved_full_path = full_path_from_current_attributes
+      @uploaded_file = nil if file_exists?
+      callback(:after_save_uploaded_file)
+    end
+    
     def rename_uploaded_file
+      return unless @uploaded_file.nil?
       if file_exists? and full_path != full_path_from_current_attributes
-        if File.file?(full_path_from_current_attributes)
-          errors.add(self.class.upload_options[:filename], "is already taken by another file")
-          return false
-        end
         ensure_directory_exists
         File.rename(full_path, full_path_from_current_attributes)
         remove_empty_directory
@@ -63,11 +58,10 @@ module ActsAsUploaded
     end
     
     def delete_uploaded_file
-      if file_exists?
-        File.delete(full_path)
-        remove_empty_directory
-        @saved_full_path = nil
-      end
+      return unless file_exists?
+      File.delete(full_path)
+      remove_empty_directory
+      @saved_full_path = nil
     end
     
     def ensure_directory_exists

@@ -1,20 +1,29 @@
 module ActsAsUploaded
   module Validation
   
+    def validate_with_upload_validation
+      validate_without_upload_validation
+      validate_uploaded_file
+    end
+    
   private
     
-    def validate_uploaded_file(overwrite = false)
-      valid?
+    def validate_uploaded_file
       if @uploaded_file.nil?
-        errors.add_to_base('No file was uploaded') and return
+        if file_exists?
+          validate_file_does_not_exist unless full_path == full_path_from_current_attributes
+        else
+          errors.add_to_base("No file was uploaded")
+        end
+      else
+        validate_file_does_not_exist
+        validate_filesize
+        validate_content_type
       end
-      validate_file_does_not_exist unless overwrite
-      validate_filesize
-      validate_content_type
     end
     
     def validate_file_does_not_exist
-      errors.add(self.class.upload_options[:filename], "'#{filename}' already exists") if file_exists?
+      errors.add(self.class.upload_options[:filename], "'#{filename}' already exists") if File.file?(full_path_from_current_attributes)
     end
     
     def validate_filesize
