@@ -1,4 +1,87 @@
-ActsAsUploaded
-==============
+== ActsAsUploaded
 
-Description goes here
+This plugin simplifies handling of file uploads in Ruby on Rails applications. It is partly inspired by Rick Olson's attachment_fu plugin, but is mostly an abstraction of my own handling of file uploads. It also differs from and improves upon some areas of that plugin that I'm not so keen on. It is a simpler plugin, but does exactly what I need. YMMV.
+
+First: files go in the file system, never in the database. My current thinking is that the database is the wrong place to be putting files, especially binary files. I know, databases have binary column types, but what are you going to do? Run a fulltext index on your binary data? I think not. If you want to index your files through the DB, that's your business, and you should write +after_save+ hooks for that.
+
+Second: I should be able to call my columns whatever I like. Some of us have legacy schemas to deal with and we should be allowed to specify column names. This plugin assumes +filename+ as a default for storing filenames, and that's it. You can change that name if you want, and speicfy columns for storing content type and filesize too.
+
+Third: I want to write clean-as-possible code. Oftentimes I'll write a form that lets you upload several files at once, then it loops through:
+
+  params[:files].each do |file|
+    # deal with file...
+  end
+
+I don't want to have to care about the fact that +file+ will be an array in the above code, I just want to hand it to my model and be done with it. This plugin lets you write:
+
+  params[:files].each do |file|
+    record = MyFancyUpload.new(:uploaded_file => file)
+    record.save
+  end
+
+and it deals with fishing the file out of that array for you.
+
+
+=== Usage
+
+To make this all work, you'll need to call +acts_as_uploaded+ in your model - see the docs for that method for options. Having done that, you can upload files like they were regular old attributes (see the example above). To upload one file from a form:
+
+Controller:
+
+  def create
+    @record = MyFancyUpload.new
+    if request.post?
+      @record = MyFancyUpload.new(params[:record])
+      @record.save
+    end
+  end
+
+View:
+
+  <% form_for(:record, @record, :url => {:action => 'create'}, :html => {:method => 'post'}) do %>
+    <!-- Your usual form fields go here -->
+    <%= form.file_field(:uploaded_file) %>
+  <% end %>
+
+That +uploaded_file+ attribute is how you need to pass the file to the model for it to be processed. Unless you specify them yourself, the uploaded file will set the filename, content type and filesize attributes of the new record for you.
+
+
+=== Validation
+
+As detailed under the +acts_as_attachment+ method notes, you can have your model check the content type and filesize of uploads as part of the validation process. You don't need to specify any +validate_+ macros in your model, just specify valid types and sizes in the +acts_as_attachment+ options hash.
+
+In addition to this, the plugin will not let you save a record if doing so will overwrite an existing file. If you need to overwrite, just use <tt>update_attribute(:uploaded_file => file)</tt> and the new file will be saved (+update_attribute+ skips the validation process).
+
+
+=== And finally
+
+The plugin does a couple other neat things to help you. First, it automatically renames files if you change the properties of corresponding records. Note that this is only true if the path to the file is a function only of the record's own properties, not those of any associated records. Observing associations for filename changes may well result in a huge performance problem, for example if a +Folder+ record +has_many+ thousands of +Attachment+ records. If you need to name directories after associated properies, you should consider making sure that those properties cannot be changed. I can help you with that:
+
+  http://blog.jcoglan.com/attrlocked/
+
+File renaming takes place using a +before_update+ hook, so only takes place when you save the record. You'll still be able to access the file before you save the record - see the FileSystem methods for more details.
+
+Second, it deletes files when their associated records are destroyed. It also recursively removes empty directories if deleting a file leaves the directory empty.
+
+
+=== License
+
+Copyright (c) 2007 James Coglan
+
+Permission is hereby granted, free of charge, to any person obtaining
+a copy of this software and associated documentation files (the "Software"),
+to deal in the Software without restriction, including without limitation
+the rights to use, copy, modify, merge, publish, distribute, sublicense,
+and/or sell copies of the Software, and to permit persons to whom the
+Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included
+in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
