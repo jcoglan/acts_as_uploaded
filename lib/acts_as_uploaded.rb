@@ -43,10 +43,10 @@ module ActsAsUploaded #:nodoc:
       return nil
     end
     
-    def sanitize_filename(filename)
-      filename = extract_file_from_array(filename)
-      filename = filename.original_filename if filename.respond_to?(:original_filename)
-      filename.to_s.
+    def sanitize_filename(name)
+      name = extract_file_from_array(name)
+      name = name.original_filename if name.respond_to?(:original_filename)
+      name.to_s.
           gsub(/[\_\:\/]+/, ' ').
           gsub(/[^a-z0-9.\s-]/i, '').
           strip.

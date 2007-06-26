@@ -1,11 +1,6 @@
 module ActsAsUploaded #:nodoc:
   module Validation #:nodoc:
   
-    def validate_with_upload_validation
-      validate_without_upload_validation
-      validate_uploaded_file
-    end
-    
   private
     
     def validate_uploaded_file
