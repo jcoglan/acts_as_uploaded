@@ -64,6 +64,7 @@ module ActsAsUploaded #:nodoc:
     def write_attribute_with_filename_sanitizing(attr_name, value)
       if attr_name.to_s == "uploaded_file"
         @uploaded_file = extract_file_from_array(value)
+        @uploaded_file = nil if @uploaded_file.is_a?(String)
         populate_attributes_from_uploaded_file
       else
         @saved_full_path = full_path if file_exists?
